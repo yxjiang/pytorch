@@ -1474,7 +1474,7 @@ struct CAFFE2_API ClassType : public NamedType {
 
   size_t addAttribute(
       const std::string& name,
-      TypePtr type,
+      const TypePtr& type,
       bool is_parameter = false);
 
   // [Internal Only] Remove attribute from the ClassType,
@@ -1531,7 +1531,7 @@ struct CAFFE2_API ClassType : public NamedType {
 
   size_t addConstant(
       const std::string& name,
-      IValue value);
+      const IValue& value);
 
   c10::optional<IValue> getConstant(const std::string& name) const;
 
