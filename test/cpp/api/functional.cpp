@@ -1897,3 +1897,7 @@ TEST_F(FunctionalTest, isfinite) {
   test_isfinite<torch::kInt, int>();
   test_isfinite<torch::kLong, long>();
 }
+
+TEST_F(FunctionalTest, BCEWithLogitsLoss) {
+  // TODO
+}
