@@ -393,6 +393,19 @@ def create_python_bindings(python_functions, has_self, is_module=False):
             return arg.get('output', False)
 
         inputs = [arg for arg in declaration['arguments'] if not is_output(arg)]
+        if hasTO(declaration['arguments']):
+            i = 0
+            dtypeIndex = 0
+            for inp in inputs:
+                if inp['name'] == 'dtype':
+                    dtypeIndex = i
+                else:
+                    i += 1
+                
+                if inp['name'] == 'memory_format':
+                    inputs.remove(inp)
+                    inputs.insert(dtypeIndex, inp)
+        
         outputs = [arg for arg in declaration['arguments'] if is_output(arg)]
 
         #has_tensor_options = any(arg['simple_type'] == 'TensorOptions' for arg in declaration['arguments'])
@@ -465,9 +478,18 @@ def create_python_bindings(python_functions, has_self, is_module=False):
             actuals.append(actual)
             formal_args.append(formal)
 
+        #arg_idx = arg_idx if out_idx is None else out_idx #+ 1
         # We always want to unpack when we have TensorOptions.
         unpack = has_tensor_options
+        if declaration['name'] == 'new_empty':
+            print("\n\n\n\n\n\ ===+>")
+            print(declaration)
+            print(inputs)
         for arg in inputs:
+            if out_idx is not None and arg_idx == out_idx:
+                #skip output
+                arg_idx+=1
+
             if arg['simple_type'] in ['Type', 'TensorOptions']:
                 continue
             if has_self and arg['name'] == 'self':
@@ -489,8 +511,7 @@ def create_python_bindings(python_functions, has_self, is_module=False):
         layout = None
         parsed_type_args = None
         # type args go after the outputs to match the signature generation.
-        arg_idx = arg_idx if out_idx is None else out_idx + 1
-        
+        #arg_idx = arg_idx if out_idx is None else out_idx + 1
         for arg in type_args:
             parsed_type_args = parse_arg(arg, arg_idx, False)
             arg_idx += 1
@@ -542,16 +563,6 @@ def create_python_bindings(python_functions, has_self, is_module=False):
                                     "\"Device device\" are supported".format(arg)))
 
         dtype = parsed_type_args[0] if parsed_type_args else None
-        #if has_tensor_options and all([dtype, device, layout, requires_grad]):
-            #body.append(TENSOR_OPTIONS.substitute({
-            #    'dtype': dtype,
-            #    'layout': layout,
-            #    'device': device,
-            #    'requires_grad': requires_grad,
-            #    'pin_memory': pin_memory,
-            #}))
-            #formal_args.append('const TensorOptions & options')
-            #actuals.append('options')
 
         env['unpack_args'] = []
         env['formal_args'] = formal_args
@@ -612,6 +623,11 @@ def create_python_bindings(python_functions, has_self, is_module=False):
         else:
             body.append(PY_VARIABLE_WRAP.substitute(env, call_dispatch=call_dispatch))
         py_method_dispatch.append(PY_VARIABLE_DISPATCH.substitute(env))
+        
+        if declaration['name'] == 'new_empty':
+            print("\n\n\n\n\n")
+            print(body)
+
         return body
 
     def emit_dispatch(i, dictionary, base_env):
@@ -632,6 +648,7 @@ def create_python_bindings(python_functions, has_self, is_module=False):
             body = emit_single_dispatch(dictionary['base'], None, base_env)
 
         cond = 'if' if i == 0 else '} else if'
+
         return PY_VARIABLE_CASE.substitute(i=i, cond=cond, call_dispatch=body)
 
     def get_python_binding_arguments(declaration):

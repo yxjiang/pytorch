@@ -94,7 +94,7 @@ Tensor empty_cpu(IntArrayRef size, c10::optional<c10::ScalarType> dtype, c10::op
   check_size_nonnegative(size);
 
   c10::Allocator* allocator;
-  if (pin_memory) {
+  if (pin_memory.has_value() && pin_memory.value()) {
     allocator = detail::getCUDAHooks().getPinnedMemoryAllocator();
   } else {
     allocator = at::getCPUAllocator();
