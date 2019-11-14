@@ -101,6 +101,11 @@ class TORCH_API RpcAgent {
     return rpcTimeout_;
   }
 
+  // Set the timeout for all RPCs
+  inline void setRpcTimeout(const std::chrono::milliseconds& rpcTimeout) {
+    rpcTimeout_ = rpcTimeout;
+  }
+
   // Call sync and join all internal threads. This method should be called
   // before every RPC process exits.
   virtual void join() = 0;
@@ -122,7 +127,7 @@ class TORCH_API RpcAgent {
   const WorkerInfo workerInfo_;
   const std::string workerName_;
   const std::unique_ptr<RequestCallback> cb_;
-  const std::chrono::milliseconds rpcTimeout_;
+  std::chrono::milliseconds rpcTimeout_;
 
  private:
   static std::shared_ptr<RpcAgent> defaultRpcAgent_;

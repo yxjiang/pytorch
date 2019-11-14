@@ -117,6 +117,10 @@ def my_function(a, b, c):
 def my_tensor_function(a, b):
     return a + b
 
+def my_sleep_func():
+    import time
+    time.sleep(1)
+
 
 def my_complex_tensor_function(list_input, tensor_class_input, dict_input):
     res = list_input[0]
@@ -1043,6 +1047,32 @@ class RpcTest(object):
         set_timeout = rpc.get_rpc_timeout()
         self.assertEqual(timeout, set_timeout)
         rpc.join_rpc()
+
+    @dist_init
+    def test_rpc_timeouts(self):
+        rpc.set_rpc_timeout(timedelta(milliseconds=1))
+        dst_rank = (self.rank + 1) % self.world_size
+        fut = rpc.rpc_async("worker{}".format(dst_rank), my_sleep_func, args=())
+        print('started future')
+        print('started')
+        # with self.assertRaisesRegex(RuntimeError, "future timed out"):
+        #     fut.wait()
+        print("done")
+
+        # futs = [rpc.rpc_async("worker{}".format(dst_rank), my_sleep_func, args=()) for _ in range(200)]
+        # for fut in futs:
+        #     with self.assertRaisesRegex(RuntimeError, "future timed out"):
+        #         fut.wait()
+        #         print("passed!!!")
+
+        # TODO test no futures created
+        # TODO test the case where other worker eventually responds
+        # TODO test the case where the worker just drops the RPC.
+
+
+
+
+
 
 
     def test_requires_process_group_agent_decorator(self):

@@ -6,6 +6,7 @@
 #include <torch/csrc/distributed/rpc/python_rpc_handler.h>
 #include <torch/csrc/distributed/rpc/rpc_agent.h>
 
+#include <atomic>
 #include <thread>
 
 namespace torch {
@@ -77,6 +78,8 @@ class ProcessGroupAgent : public RpcAgent {
   void enqueueRecv(RecvWork work);
   // receiving messages
   void listenLoop();
+  // poll for timed out RPCs
+  void pollTimedOutRPCs();
 
   // Note [Termination Detection]
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -105,6 +108,10 @@ class ProcessGroupAgent : public RpcAgent {
     return ++nextId_;
   }
 
+  // atomic bool indicating if join() has been called and background threads
+  // should shutdown.
+  std::atomic_bool shutdown_;
+
   std::shared_ptr<c10d::ProcessGroup> pg_;
   // worker name -> rank
   std::unordered_map<std::string, int> nameMap_;
@@ -115,12 +122,15 @@ class ProcessGroupAgent : public RpcAgent {
   // termination and only exit when all sent messages are processed.
   MessageCounter sendCounts_;
   MessageCounter recvCounts_;
+  MessageCounter timedOutCounts_;
 
   std::atomic<int64_t> nextId_;
   // one mutex per ProcessGroup rank, as ProcessGroup::send is not thread-safe
   // when using the same tag.
   std::vector<std::mutex> sendMutexes_;
   std::thread listenerThread_;
+  // A thread to poll existing futures and check for timed out ones.
+  std::thread futureTimeoutThread_;
   // A threadPool that processing both SendWork and RecvWork. There are two
   // motivations for adding a ThreadPool:
   // (1) RPC serialization/deserialization and processing can be expensive,
@@ -145,6 +155,10 @@ class ProcessGroupAgent : public RpcAgent {
   std::map<std::chrono::milliseconds, std::vector<int64_t>> futureTimeouts_;
   mutable std::mutex futureMutex_;
   mutable std::condition_variable futureCV_;
+  // for future timeouts.
+  mutable std::mutex futureTimeoutMutex_;
+  std::condition_variable futureTimeoutCV_;
+  int numTimedOutFutures_;
 };
 
 } // namespace rpc
