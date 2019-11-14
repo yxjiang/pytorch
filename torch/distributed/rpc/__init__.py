@@ -21,7 +21,7 @@ if is_available():
     from .api import *  # noqa: F401
     import torch.distributed.autograd
 
-    def init_model_parallel(
+    def init_rpc(
         self_name,
         backend=backend_registry.BackendType.PROCESS_GROUP,
         init_method=None,
@@ -31,7 +31,7 @@ if is_available():
         rpc_timeout=DEFAULT_RPC_TIMEOUT,
     ):
         r"""
-        Initializes model parallel primitives such as the local rpc agent
+        Initializes rpc primitives such as the local rpc agent
         and distributed autograd.
 
         Initializes the local RPC agent which immediately makes the current
