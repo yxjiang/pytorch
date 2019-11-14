@@ -77,3 +77,151 @@ TEST(TensorIndexingTest, TensorIndex) {
 
   ASSERT_EQ(c10::str(std::vector<TensorIndex>({{1, 3, 2}})), c10::str("({1, 3, 2})"));
 }
+
+// yf225 TODO: finish this test
+TEST(TensorIndexingTest, TensorIndexMethodOverloads) {
+  {
+    auto tensor = torch::randn({20, 20});
+    ASSERT_TRUE(tensor.index(std::vector<torch::Tensor>{torch::arange(10)})[0].equal(tensor[0]));
+  }
+  {
+    auto tensor = torch::randn({20, 20});
+    ASSERT_TRUE(tensor.index(std::vector<TensorIndex>{torch::arange(10)})[0].equal(tensor[0]));
+  }
+  {
+    auto tensor = torch::randn({20, 20});
+    ASSERT_TRUE(tensor.index({torch::arange(10)})[0].equal(tensor[0]));
+  }
+}
+
+// yf225 TODO: finish this test
+TEST(TensorIndexingTest, TensorIndexPutMethodOverloads) {
+  {
+    auto tensor = torch::randn({20, 20});
+    tensor.index_put_(std::vector<torch::Tensor>{torch::arange(10)})[0].equal(tensor[0]));
+  }
+  {
+    auto tensor = torch::randn({20, 20});
+    ASSERT_TRUE(tensor.index(std::vector<TensorIndex>{torch::arange(10)})[0].equal(tensor[0]));
+  }
+  {
+    auto tensor = torch::randn({20, 20});
+    ASSERT_TRUE(tensor.index({torch::arange(10)})[0].equal(tensor[0]));
+  }
+}
+
+// TODO: I will remove the Python tests in the comments once the PR is approved.
+
+// yf225 TODO NOW: use index() and index_put_() APIs
+
+/*
+class TestIndexing(TestCase):
+    def test_single_int(self):
+        v = torch.randn(5, 7, 3)
+        self.assertEqual(v[4].shape, (7, 3))
+*/
+TEST(TensorIndexingTest, TestSingleInt) {
+  auto v = torch::randn({5, 7, 3});
+  assert_equal(v(4).sizes(), {7, 3});
+}
+
+/*
+    def test_multiple_int(self):
+        v = torch.randn(5, 7, 3)
+        self.assertEqual(v[4].shape, (7, 3))
+        self.assertEqual(v[4, :, 1].shape, (7,))
+*/
+TEST(TensorIndexingTest, TestMultipleInt) {
+  auto v = torch::randn({5, 7, 3});
+  assert_equal(v(4).sizes(), {7, 3});
+  assert_equal(v(4, {}, 1).sizes(), {7});
+}
+
+/*
+    def test_none(self):
+        v = torch.randn(5, 7, 3)
+        self.assertEqual(v[None].shape, (1, 5, 7, 3))
+        self.assertEqual(v[:, None].shape, (5, 1, 7, 3))
+        self.assertEqual(v[:, None, None].shape, (5, 1, 1, 7, 3))
+        self.assertEqual(v[..., None].shape, (5, 7, 3, 1))
+*/
+TEST(TensorIndexingTest, TestNone) {
+  auto v = torch::randn({5, 7, 3});
+  assert_equal(v(None).sizes(), {1, 5, 7, 3});
+  assert_equal(v({}, None).sizes(), {5, 1, 7, 3});
+  assert_equal(v({}, None, None).sizes(), {5, 1, 1, 7, 3});
+  assert_equal(v("...", None).sizes(), {5, 7, 3, 1});
+}
+
+/*
+    def test_step(self):
+        v = torch.arange(10)
+        self.assertEqual(v[::1], v)
+        self.assertEqual(v[::2].tolist(), [0, 2, 4, 6, 8])
+        self.assertEqual(v[::3].tolist(), [0, 3, 6, 9])
+        self.assertEqual(v[::11].tolist(), [0])
+        self.assertEqual(v[1:6:2].tolist(), [1, 3, 5])
+*/
+TEST(TensorIndexingTest, TestStep) {
+  auto v = torch::arange(10);
+  assert_equal(v({None, None, 1}), v);
+  assert_equal(v({None, None, 2}), torch::tensor({0, 2, 4, 6, 8}));
+  assert_equal(v({None, None, 3}), torch::tensor({0, 3, 6, 9}));
+  assert_equal(v({None, None, 11}), torch::tensor({0}));
+  assert_equal(v({1, 6, 2}), torch::tensor({1, 3, 5}));
+}
+
+/*
+    def test_step_assignment(self):
+        v = torch.zeros(4, 4)
+        v[0, 1::2] = torch.tensor([3., 4.])
+        self.assertEqual(v[0].tolist(), [0, 3, 0, 4])
+        self.assertEqual(v[1:].sum(), 0)
+*/
+TEST(TensorIndexingTest, TestStepAssignment) {
+  auto v = torch::zeros({4, 4});
+  v(0, {1, None, 2}) = torch::tensor({3., 4.});
+  assert_equal(v(0), torch::tensor({0., 3., 0., 4.}));
+  ASSERT_TRUE(exactly_equal(v({1, None}).sum(), 0));
+}
+
+/*
+    def test_bool_indices(self):
+        v = torch.randn(5, 7, 3)
+        boolIndices = torch.tensor([True, False, True, True, False], dtype=torch.bool)
+        self.assertEqual(v[boolIndices].shape, (3, 7, 3))
+        self.assertEqual(v[boolIndices], torch.stack([v[0], v[2], v[3]]))
+
+        v = torch.tensor([True, False, True], dtype=torch.bool)
+        boolIndices = torch.tensor([True, False, False], dtype=torch.bool)
+        uint8Indices = torch.tensor([1, 0, 0], dtype=torch.uint8)
+        with warnings.catch_warnings(record=True) as w:
+            self.assertEqual(v[boolIndices].shape, v[uint8Indices].shape)
+            self.assertEqual(v[boolIndices], v[uint8Indices])
+            self.assertEqual(v[boolIndices], tensor([True], dtype=torch.bool))
+            self.assertEquals(len(w), 2)
+*/
+TEST(TensorIndexingTest, TestBoolIndices) {
+  {
+    auto v = torch::randn({5, 7, 3});
+    auto boolIndices = torch::tensor({true, false, true, true, false}, torch::kBool);
+    assert_equal(v(boolIndices).sizes(), {3, 7, 3});
+    assert_equal(v(boolIndices), torch::stack({v(0), v(2), v(3)}));
+  }
+  {
+    auto v = torch::tensor({true, false, true}, torch::kBool);
+    auto boolIndices = torch::tensor({true, false, false}, torch::kBool);
+    auto uint8Indices = torch::tensor({1, 0, 0}, torch::kUInt8);
+
+    {
+      std::stringstream buffer;
+      CerrRedirect cerr_redirect(buffer.rdbuf());
+
+      assert_equal(v(boolIndices).sizes(), v(uint8Indices).sizes());
+      assert_equal(v(boolIndices), v(uint8Indices));
+      assert_equal(v(boolIndices), torch::tensor({true}, torch::kBool));
+
+      ASSERT_EQ(count_substr_occurrences(buffer.str(), "indexing with dtype torch.uint8 is now deprecated"), 2);
+    }
+  }
+}
