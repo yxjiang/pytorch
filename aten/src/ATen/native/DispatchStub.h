@@ -50,7 +50,7 @@ enum class CPUCapability {
   NUM_OPTIONS
 };
 
-CPUCapability get_cpu_capability();
+CAFFE2_API CPUCapability get_cpu_capability();
 
 template <typename FnPtr, typename T>
 struct CAFFE2_API DispatchStub;
@@ -111,13 +111,12 @@ struct CAFFE2_API DispatchStub<rT (*)(Args...), T> {
   FnPtr cuda_dispatch_ptr = nullptr;
   FnPtr hip_dispatch_ptr = nullptr;
 #endif
-  static FnPtr DEFAULT;
-#ifdef HAVE_AVX_CPU_DEFINITION
-  static FnPtr AVX;
-#endif
-#ifdef HAVE_AVX2_CPU_DEFINITION
-  static FnPtr AVX2;
-#endif
+  CAFFE2_API static FnPtr DEFAULT;
+// NB: these are only used when HAVE_AVX_CPU_DEFINITION
+// and/or HAVE_AVX2_CPU_DEFINITION are defined, but we unconditionally
+// define them to make the definition of DEFINE_DISPATCH macro easier
+  CAFFE2_API static FnPtr AVX;
+  CAFFE2_API static FnPtr AVX2;
 };
 
 namespace {
@@ -150,7 +149,11 @@ struct RegisterHIPDispatch {
   };                                       \
   extern CAFFE2_API struct name name
 
-#define DEFINE_DISPATCH(name) struct name name
+// NB: Static members need to be explicitly instantiated
+#define DEFINE_DISPATCH(name) struct name name; \
+  template<> name::FnPtr DispatchStub<name::FnPtr, struct name>::DEFAULT; \
+  template<> name::FnPtr DispatchStub<name::FnPtr, struct name>::AVX; \
+  template<> name::FnPtr DispatchStub<name::FnPtr, struct name>::AVX2
 
 #define REGISTER_ARCH_DISPATCH(name, arch, fn) \
   template <> decltype(fn) DispatchStub<decltype(fn), struct name>::arch = fn;
